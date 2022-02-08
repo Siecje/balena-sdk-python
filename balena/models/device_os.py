@@ -274,6 +274,8 @@ class DeviceOs(object):
                 * default - recommended (if available) or latest otherwise.
 
         """
+        
+        prod_suffix = '.prod'
 
         response = self.base_request.request(
             '/device-types/v1/{device_type}/images'.format(device_type=device_type), 'GET',
@@ -281,7 +283,15 @@ class DeviceOs(object):
         )
 
         potential_recommended_versions = [i for i in response['versions'] if not re.search(r'(\.|\+|-)dev', i)]
-        potential_recommended_versions = [i for i in potential_recommended_versions if not semver.parse(i)['prerelease']]
+        
+        # returned versions contain '.prod' suffix (like 2.88.4.prod or 2.87.16+rev1.prod) which is not a valid semver string
+        # we need to remove the suffix before passing to semver.parse()
+        potential_recommended_versions = [
+            i for i in potential_recommended_versions if not semver.parse(
+                i[:-len(prod_suffix)] if i.endswith(prod_suffix) else i
+            )['prerelease']
+            
+        ]
         recommended = potential_recommended_versions[0] if potential_recommended_versions else None
 
         return {
